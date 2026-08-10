@@ -12,10 +12,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.py",
-      "headers": {
-        "Cache-Control": "s-maxage=300"
-      }
+      "dest": "/api/index.py"
     },
     {
       "src": "/",

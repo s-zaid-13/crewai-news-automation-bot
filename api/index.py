@@ -82,7 +82,9 @@ def news():
         resp = jsonify({"error": str(e)})
         return resp, 500
     resp.headers["Access-Control-Allow-Origin"] = "*"
-    resp.headers["Cache-Control"] = "s-maxage=300, stale-while-revalidate"
+    resp.headers["Cache-Control"] = (
+        "public, max-age=0, s-maxage=10, stale-while-revalidate=30"
+    )
     return resp
 
 
