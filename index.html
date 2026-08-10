@@ -19,6 +19,7 @@
       --blue: #5B9BC4;
       --text: #EDEAE2;
       --muted: #8B8F98;
+      --danger: #C4645B;
     }
 
     * {
@@ -73,75 +74,13 @@
       margin-top: 10px;
     }
 
-    /* ---------- Wire ticker ---------- */
-    .ticker-wrap {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      overflow: hidden;
-      white-space: nowrap;
-      position: relative;
-    }
-
-    .ticker-wrap::before,
-    .ticker-wrap::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 60px;
-      z-index: 2;
-    }
-
-    .ticker-wrap::before {
-      left: 0;
-      background: linear-gradient(90deg, var(--surface), transparent);
-    }
-
-    .ticker-wrap::after {
-      right: 0;
-      background: linear-gradient(-90deg, var(--surface), transparent);
-    }
-
-    .ticker-track {
-      display: inline-block;
-      padding: 10px 0;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 13px;
-      color: var(--muted);
-      animation: scroll 40s linear infinite;
-    }
-
-    .ticker-track span {
-      margin-right: 48px;
-    }
-
-    .ticker-track span.hl {
-      color: var(--gold);
-    }
-
-    @keyframes scroll {
-      from {
-        transform: translateX(0);
-      }
-
-      to {
-        transform: translateX(-50%);
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .ticker-track {
-        animation: none;
-      }
-    }
-
     /* ---------- Stats ---------- */
     .stats {
       max-width: 1040px;
-      margin: 36px auto 0;
+      margin: 40px auto 0;
       padding: 0 24px;
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 16px;
     }
 
@@ -154,9 +93,10 @@
 
     .stat-value {
       font-family: 'Fraunces', serif;
-      font-size: 30px;
+      font-size: 28px;
       font-weight: 600;
       color: var(--gold);
+      line-height: 1.2;
     }
 
     .stat-label {
@@ -165,47 +105,58 @@
       letter-spacing: 0.12em;
       text-transform: uppercase;
       color: var(--muted);
-      margin-top: 4px;
+      margin-top: 6px;
     }
 
-    /* ---------- Filters ---------- */
-    .filters {
+    /* ---------- Trigger panel ---------- */
+    .trigger-panel {
       max-width: 1040px;
-      margin: 28px auto 0;
+      margin: 20px auto 0;
       padding: 0 24px;
       display: flex;
-      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
       flex-wrap: wrap;
     }
 
-    .filter-btn {
+    .trigger-copy {
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .trigger-btn {
       font-family: 'IBM Plex Mono', monospace;
-      font-size: 12px;
-      letter-spacing: 0.05em;
-      background: transparent;
-      color: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 7px 16px;
-      cursor: pointer;
-      transition: border-color 0.15s ease, color 0.15s ease;
-    }
-
-    .filter-btn:hover {
-      color: var(--text);
-      border-color: var(--muted);
-    }
-
-    .filter-btn.active {
-      color: var(--bg);
+      font-size: 13px;
+      letter-spacing: 0.04em;
       background: var(--gold);
-      border-color: var(--gold);
+      color: var(--bg);
+      border: none;
+      border-radius: 4px;
+      padding: 12px 22px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: opacity 0.15s ease, transform 0.1s ease;
+      white-space: nowrap;
+    }
+
+    .trigger-btn:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
+    .trigger-btn:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .trigger-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
 
     /* ---------- Feed ---------- */
     main.feed {
       max-width: 1040px;
-      margin: 24px auto 80px;
+      margin: 36px auto 80px;
       padding: 0 24px;
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -238,7 +189,7 @@
       }
     }
 
-    .card-topic {
+    .card-source {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 10px;
       letter-spacing: 0.14em;
@@ -298,6 +249,10 @@
       font-size: 13px;
     }
 
+    .state-message.error {
+      color: var(--danger);
+    }
+
     footer {
       text-align: center;
       padding: 24px;
@@ -317,20 +272,10 @@
     <div class="masthead-sub">An unattended newsroom, run by agents, read by you</div>
   </header>
 
-  <div class="ticker-wrap">
-    <div class="ticker-track" id="ticker">
-      <span>LOADING WIRE …</span>
-    </div>
-  </div>
-
   <section class="stats" id="stats">
     <div class="stat-card">
       <div class="stat-value" id="stat-count">—</div>
       <div class="stat-label">Dispatches logged</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-value" id="stat-topics">—</div>
-      <div class="stat-label">Topics tracked</div>
     </div>
     <div class="stat-card">
       <div class="stat-value" id="stat-updated" style="font-size:18px;">—</div>
@@ -340,14 +285,12 @@
 
   <section class="trigger-panel">
     <div class="trigger-copy">
-      <div class="card-topic">Manual Override</div>
+      <div class="card-source">Manual Override</div>
       <h2 class="masthead-title" style="font-size:22px;">Run the desk now</h2>
       <p class="card-summary" style="margin:0;">Skip the schedule — fetch, summarize, and publish immediately.</p>
     </div>
     <button class="trigger-btn" id="trigger-btn">Trigger Pipeline</button>
   </section>
-
-  <div class="filters" id="filters"></div>
 
   <main class="feed" id="feed">
     <div class="state-message">Tuning in to the wire …</div>
@@ -358,22 +301,22 @@
     <h2 class="masthead-title" style="font-size:28px; text-align:left; margin-bottom:24px;">How the desk works</h2>
     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:20px;">
       <div class="card" style="animation:none; opacity:1; transform:none;">
-        <div class="card-topic">01 — Researcher</div>
+        <div class="card-source">01 — Researcher</div>
         <h3 class="card-headline" style="font-size:16px;">Scans the wire</h3>
-        <p class="card-summary">Searches live news across your tracked topics and filters out duplicates.</p>
+        <p class="card-summary">Searches live news across tracked topics and filters out duplicates.</p>
       </div>
       <div class="card" style="animation:none; opacity:1; transform:none;">
-        <div class="card-topic">02 — Summarizer</div>
+        <div class="card-source">02 — Summarizer</div>
         <h3 class="card-headline" style="font-size:16px;">Tightens the copy</h3>
         <p class="card-summary">Condenses each article into a factual, no-speculation 2-3 sentence brief.</p>
       </div>
       <div class="card" style="animation:none; opacity:1; transform:none;">
-        <div class="card-topic">03 — Publisher</div>
+        <div class="card-source">03 — Publisher</div>
         <h3 class="card-headline" style="font-size:16px;">Sends to Slack</h3>
         <p class="card-summary">Posts headline, summary, and source link straight to the team channel.</p>
       </div>
       <div class="card" style="animation:none; opacity:1; transform:none;">
-        <div class="card-topic">04 — Archive</div>
+        <div class="card-source">04 — Archive</div>
         <h3 class="card-headline" style="font-size:16px;">Logs to Sheets</h3>
         <p class="card-summary">Every dispatch is permanently recorded for this dashboard to read.</p>
       </div>
@@ -386,7 +329,6 @@
 
   <script>
     let allItems = [];
-    let activeTopic = "All";
     const triggerBtn = document.getElementById('trigger-btn');
 
     triggerBtn.addEventListener('click', async () => {
@@ -411,6 +353,7 @@
         triggerBtn.textContent = 'Trigger Pipeline';
       }, 60000);
     });
+
     async function loadNews() {
       try {
         const res = await fetch('/api/news');
@@ -424,64 +367,29 @@
         allItems = data.items;
 
         document.getElementById('stat-count').textContent = data.count ?? allItems.length;
-        document.getElementById('stat-updated').textContent = data.last_updated || '—';
+        document.getElementById('stat-updated').textContent = formatDate(data.last_updated) || '—';
 
-        const topics = [...new Set(allItems.map(i => i.Topic || 'General'))];
-        document.getElementById('stat-topics').textContent = topics.length;
-
-        renderTicker();
-        renderFilters(topics);
         renderFeed();
       } catch (e) {
         showError();
       }
     }
 
-    function renderTicker() {
-      const ticker = document.getElementById('ticker');
-      if (allItems.length === 0) {
-        ticker.innerHTML = '<span>The wire is quiet. No dispatches yet.</span>';
-        return;
-      }
-      const headlines = allItems.slice(0, 12).map(i => `<span class="hl">●</span> <span>${escapeHtml(i.Headline)}</span>`);
-      ticker.innerHTML = headlines.concat(headlines).join('');
-    }
-
-    function renderFilters(topics) {
-      const container = document.getElementById('filters');
-      const all = ['All', ...topics];
-      container.innerHTML = all.map(t =>
-        `<button class="filter-btn ${t === activeTopic ? 'active' : ''}" data-topic="${escapeHtml(t)}">${escapeHtml(t)}</button>`
-      ).join('');
-
-      container.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          activeTopic = btn.dataset.topic;
-          renderFilters(topics);
-          renderFeed();
-        });
-      });
-    }
-
     function renderFeed() {
       const feed = document.getElementById('feed');
 
-      const filtered = activeTopic === 'All'
-        ? allItems
-        : allItems.filter(i => (i.Topic || 'General') === activeTopic);
-
-      if (filtered.length === 0) {
-        feed.innerHTML = '<div class="state-message">No dispatches for this topic yet. Check back after the next run.</div>';
+      if (allItems.length === 0) {
+        feed.innerHTML = '<div class="state-message">No dispatches yet. Check back after the next run.</div>';
         return;
       }
 
-      feed.innerHTML = filtered.map((item, idx) => `
+      feed.innerHTML = allItems.map((item, idx) => `
       <article class="card" style="animation-delay:${Math.min(idx * 0.03, 0.3)}s">
-        <div class="card-topic">${escapeHtml(item.Topic || 'General')}</div>
+        <div class="card-source">${escapeHtml(getSourceLabel(item['Source URL']))}</div>
         <h2 class="card-headline">${escapeHtml(item.Headline)}</h2>
         <p class="card-summary">${escapeHtml(item.Summary)}</p>
         <div class="card-footer">
-          <span class="card-date">${escapeHtml(item.Datetime || '')}</span>
+          <span class="card-date">${escapeHtml(formatDate(item.Datetime))}</span>
           <a class="card-link" href="${escapeAttr(item['Source URL'] || '#')}" target="_blank" rel="noopener">Read source →</a>
         </div>
       </article>
@@ -490,13 +398,50 @@
 
     function showError() {
       document.getElementById('feed').innerHTML =
-        '<div class="state-message">The wire is down. The dashboard couldn\'t reach the newsroom — try again shortly.</div>';
-      document.getElementById('ticker').innerHTML = '<span>WIRE OFFLINE — RETRYING SHORTLY</span>';
+        '<div class="state-message error">The wire is down. The dashboard couldn\'t reach the newsroom — try again shortly.</div>';
+    }
+
+    // Parses the exact "YYYY-MM-DD HH:MM" format the backend sends.
+    // Avoids relying on new Date(string) parsing, which is inconsistent
+    // across browsers for non-ISO datetime strings and was the source
+    // of the wrong-date/wrong-time bug.
+    function formatDate(value) {
+      if (!value) return '';
+      const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(value.trim());
+      if (!match) return value; // fall back to raw string rather than showing "Invalid Date"
+
+      const [, year, month, day, hour, minute] = match.map(Number).length
+        ? match
+        : match;
+      const date = new Date(
+        Number(match[1]), Number(match[2]) - 1, Number(match[3]),
+        Number(match[4]), Number(match[5])
+      );
+
+      if (isNaN(date.getTime())) return value;
+
+      return date.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    }
+
+    function getSourceLabel(url) {
+      if (!url) return 'Source';
+      try {
+        const hostname = new URL(url).hostname.replace(/^www\./, '');
+        return hostname;
+      } catch {
+        return 'Source';
+      }
     }
 
     function escapeHtml(str) {
       if (!str) return '';
-      return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+      return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
     }
 
     function escapeAttr(str) { return escapeHtml(str); }
