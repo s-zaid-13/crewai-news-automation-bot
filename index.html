@@ -89,6 +89,11 @@
       border: 1px solid var(--border);
       border-radius: 4px;
       padding: 18px 20px;
+      transition: border-color 0.3s ease;
+    }
+
+    .stat-card.flash {
+      border-color: var(--gold);
     }
 
     .stat-value {
@@ -125,6 +130,14 @@
       min-width: 220px;
     }
 
+    .trigger-status {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--gold);
+      margin-top: 6px;
+      min-height: 16px;
+    }
+
     .trigger-btn {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 13px;
@@ -138,6 +151,9 @@
       font-weight: 600;
       transition: opacity 0.15s ease, transform 0.1s ease;
       white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .trigger-btn:hover:not(:disabled) {
@@ -149,8 +165,28 @@
     }
 
     .trigger-btn:disabled {
-      opacity: 0.6;
+      opacity: 0.75;
       cursor: not-allowed;
+    }
+
+    .spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(15, 17, 21, 0.35);
+      border-top-color: var(--bg);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+
+    .trigger-btn.loading .spinner {
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     /* ---------- Feed ---------- */
@@ -174,12 +210,17 @@
       opacity: 0;
       transform: translateY(8px);
       animation: rise 0.4s ease forwards;
-      transition: border-color 0.15s ease, background 0.15s ease;
+      transition: border-color 0.4s ease, background 0.4s ease, box-shadow 0.4s ease;
     }
 
     .card:hover {
       border-color: var(--gold);
       background: var(--surface-hover);
+    }
+
+    .card.is-new {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 1px var(--gold), 0 0 18px rgba(201, 162, 39, 0.35);
     }
 
     @keyframes rise {
@@ -189,12 +230,36 @@
       }
     }
 
+    .card-source-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
     .card-source {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 10px;
       letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--blue);
+    }
+
+    .new-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--bg);
+      background: var(--gold);
+      border-radius: 999px;
+      padding: 2px 8px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .card.is-new .new-badge {
+      opacity: 1;
     }
 
     .card-headline {
@@ -273,11 +338,11 @@
   </header>
 
   <section class="stats" id="stats">
-    <div class="stat-card">
+    <div class="stat-card" id="stat-card-count">
       <div class="stat-value" id="stat-count">—</div>
       <div class="stat-label">Dispatches logged</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card" id="stat-card-updated">
       <div class="stat-value" id="stat-updated" style="font-size:18px;">—</div>
       <div class="stat-label">Last dispatch</div>
     </div>
@@ -288,8 +353,12 @@
       <div class="card-source">Manual Override</div>
       <h2 class="masthead-title" style="font-size:22px;">Run the desk now</h2>
       <p class="card-summary" style="margin:0;">Skip the schedule — fetch, summarize, and publish immediately.</p>
+      <div class="trigger-status" id="trigger-status"></div>
     </div>
-    <button class="trigger-btn" id="trigger-btn">Trigger Pipeline</button>
+    <button class="trigger-btn" id="trigger-btn">
+      <span class="spinner"></span>
+      <span id="trigger-btn-label">Trigger Pipeline</span>
+    </button>
   </section>
 
   <main class="feed" id="feed">
@@ -329,34 +398,123 @@
 
   <script>
     let allItems = [];
+    let newUrls = new Set();
+
     const triggerBtn = document.getElementById('trigger-btn');
+    const triggerBtnLabel = document.getElementById('trigger-btn-label');
+    const triggerStatus = document.getElementById('trigger-status');
+
+    let pollTimer = null;
+    let pollDeadline = 0;
+
+    function setTriggerState(label, { loading = false, status = '' } = {}) {
+      triggerBtnLabel.textContent = label;
+      triggerStatus.textContent = status;
+      triggerBtn.disabled = loading;
+      triggerBtn.classList.toggle('loading', loading);
+    }
 
     triggerBtn.addEventListener('click', async () => {
-      triggerBtn.disabled = true;
-      triggerBtn.textContent = 'Dispatching…';
+      stopPolling();
+      setTriggerState('Starting…', { loading: true, status: 'Dispatching pipeline run…' });
 
       try {
         const res = await fetch('/api/trigger', { method: 'POST' });
         const data = await res.json();
 
         if (data.status === 'triggered') {
-          triggerBtn.textContent = 'Run started ✓';
+          const baselineCount = allItems.length;
+          const baselineUpdated = document.getElementById('stat-updated').dataset.raw || '';
+          setTriggerState('Running…', { loading: true, status: 'Fetching, summarizing, publishing…' });
+          startPolling(baselineCount, baselineUpdated);
         } else {
-          triggerBtn.textContent = 'Failed — try again';
+          setTriggerState('Failed — try again', { loading: false, status: data.error || '' });
+          resetButtonAfterDelay();
         }
       } catch {
-        triggerBtn.textContent = 'Failed — try again';
+        setTriggerState('Failed — try again', { loading: false, status: 'Could not reach the trigger endpoint.' });
+        resetButtonAfterDelay();
       }
-
-      setTimeout(() => {
-        triggerBtn.disabled = false;
-        triggerBtn.textContent = 'Trigger Pipeline';
-      }, 60000);
     });
+
+    function resetButtonAfterDelay(delay = 4000) {
+      setTimeout(() => setTriggerState('Trigger Pipeline', { loading: false, status: '' }), delay);
+    }
+
+    // Poll /api/news every 12s, watching for new count / last_updated,
+    // for up to 5 minutes (the pipeline can genuinely take a few minutes).
+    function startPolling(baselineCount, baselineUpdated) {
+      pollDeadline = Date.now() + 5 * 60 * 1000;
+
+      pollTimer = setInterval(async () => {
+        if (Date.now() > pollDeadline) {
+          stopPolling();
+          setTriggerState('No new dispatch yet', { loading: false, status: 'The run may still be in progress — check back shortly.' });
+          resetButtonAfterDelay(6000);
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/news', { cache: 'no-store' });
+          const data = await res.json();
+          if (data.error || !data.items) return;
+
+          const gotNew = data.count > baselineCount || data.last_updated !== baselineUpdated;
+
+          if (gotNew) {
+            const previousUrls = new Set(allItems.map(i => i['Source URL']));
+            applyNewsData(data);
+            newUrls = new Set(
+              allItems
+                .filter(i => !previousUrls.has(i['Source URL']))
+                .map(i => i['Source URL'])
+            );
+            renderFeed();
+            flashStats();
+
+            stopPolling();
+            setTriggerState('New dispatch added ✓', { loading: false, status: `${newUrls.size} new item(s) published.` });
+            resetButtonAfterDelay(6000);
+
+            setTimeout(() => {
+              newUrls.clear();
+              renderFeed();
+            }, 6000);
+          } else {
+            setTriggerState('Running…', { loading: true, status: 'Still working — checking again shortly…' });
+          }
+        } catch {
+          // transient fetch error mid-poll — ignore and try again next tick
+        }
+      }, 12000);
+    }
+
+    function stopPolling() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    function flashStats() {
+      ['stat-card-count', 'stat-card-updated'].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.add('flash');
+        setTimeout(() => el.classList.remove('flash'), 1200);
+      });
+    }
+
+    function applyNewsData(data) {
+      allItems = data.items;
+      document.getElementById('stat-count').textContent = data.count ?? allItems.length;
+      const updatedEl = document.getElementById('stat-updated');
+      updatedEl.textContent = formatDate(data.last_updated) || '—';
+      updatedEl.dataset.raw = data.last_updated || '';
+    }
 
     async function loadNews() {
       try {
-        const res = await fetch('/api/news');
+        const res = await fetch('/api/news', { cache: 'no-store' });
         const data = await res.json();
 
         if (data.error || !data.items) {
@@ -364,11 +522,7 @@
           return;
         }
 
-        allItems = data.items;
-
-        document.getElementById('stat-count').textContent = data.count ?? allItems.length;
-        document.getElementById('stat-updated').textContent = formatDate(data.last_updated) || '—';
-
+        applyNewsData(data);
         renderFeed();
       } catch (e) {
         showError();
@@ -383,9 +537,14 @@
         return;
       }
 
-      feed.innerHTML = allItems.map((item, idx) => `
-      <article class="card" style="animation-delay:${Math.min(idx * 0.03, 0.3)}s">
-        <div class="card-source">${escapeHtml(getSourceLabel(item['Source URL']))}</div>
+      feed.innerHTML = allItems.map((item, idx) => {
+        const isNew = newUrls.has(item['Source URL']);
+        return `
+      <article class="card ${isNew ? 'is-new' : ''}" style="animation-delay:${Math.min(idx * 0.03, 0.3)}s">
+        <div class="card-source-row">
+          <div class="card-source">${escapeHtml(getSourceLabel(item['Source URL']))}</div>
+          <span class="new-badge">New</span>
+        </div>
         <h2 class="card-headline">${escapeHtml(item.Headline)}</h2>
         <p class="card-summary">${escapeHtml(item.Summary)}</p>
         <div class="card-footer">
@@ -393,7 +552,8 @@
           <a class="card-link" href="${escapeAttr(item['Source URL'] || '#')}" target="_blank" rel="noopener">Read source →</a>
         </div>
       </article>
-    `).join('');
+    `;
+      }).join('');
     }
 
     function showError() {
@@ -401,18 +561,11 @@
         '<div class="state-message error">The wire is down. The dashboard couldn\'t reach the newsroom — try again shortly.</div>';
     }
 
-    // Parses the exact "YYYY-MM-DD HH:MM" format the backend sends.
-    // Avoids relying on new Date(string) parsing, which is inconsistent
-    // across browsers for non-ISO datetime strings and was the source
-    // of the wrong-date/wrong-time bug.
     function formatDate(value) {
       if (!value) return '';
       const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(value.trim());
-      if (!match) return value; // fall back to raw string rather than showing "Invalid Date"
+      if (!match) return value;
 
-      const [, year, month, day, hour, minute] = match.map(Number).length
-        ? match
-        : match;
       const date = new Date(
         Number(match[1]), Number(match[2]) - 1, Number(match[3]),
         Number(match[4]), Number(match[5])
@@ -432,8 +585,7 @@
     function getSourceLabel(url) {
       if (!url) return 'Source';
       try {
-        const hostname = new URL(url).hostname.replace(/^www\./, '');
-        return hostname;
+        return new URL(url).hostname.replace(/^www\./, '');
       } catch {
         return 'Source';
       }
