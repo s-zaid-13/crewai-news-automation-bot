@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Type
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
@@ -11,6 +11,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
 ]
+PKT = timezone(timedelta(hours=5))
 
 
 class SheetsLoggerInput(BaseModel):
@@ -37,7 +38,7 @@ class SheetsLoggerTool(BaseTool):
         sheet = client.open_by_key(config.GOOGLE_SHEET_ID).sheet1
 
         row = [
-            datetime.now().strftime("%Y-%m-%d %H:%M"),
+            datetime.now(PKT).strftime("%Y-%m-%d %H:%M"),
             headline,
             summary,
             source_url,
