@@ -1,0 +1,11 @@
+agents.py
+tasks.py
+crew.py
+main.py
+config.py
+patches.py
+tools/
+credentials.json
+requirements.txt
+.github/
+README.md
