@@ -8,5 +8,3 @@ dependencies = [
     "google-auth>=2.35.0",
 ]
 
-[tool.vercel]
-entrypoint = "api.index:app"

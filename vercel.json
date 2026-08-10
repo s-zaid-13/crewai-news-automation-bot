@@ -1,19 +1,25 @@
 {
-  "rewrites": [
+  "builds": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/index"
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
     }
   ],
-  "headers": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "s-maxage=300"
-        }
-      ]
+      "src": "/api/(.*)",
+      "dest": "/api/index.py",
+      "headers": {
+        "Cache-Control": "s-maxage=300"
+      }
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
     }
   ]
 }
