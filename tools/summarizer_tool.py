@@ -2,12 +2,12 @@ import time
 from typing import Type
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
-import google.generativeai as genai
-from google.api_core.exceptions import ResourceExhausted
+from google import genai
+from google.genai import errors
 
 from config import config
 
-genai.configure(api_key=config.GEMINI_API_KEY)
+client = genai.Client(api_key=config.GEMINI_API_KEY)
 
 
 class SummarizerInput(BaseModel):
@@ -28,8 +28,6 @@ class SummarizerTool(BaseTool):
     args_schema: Type[BaseModel] = SummarizerInput
 
     def _run(self, articles: list[str]) -> str:
-        model = genai.GenerativeModel("gemini-3.1-flash-lite")
-
         trimmed_articles = [text[:800] for text in articles]
         numbered_input = "\n\n".join(
             f"Article {i+1}:\n{text}" for i, text in enumerate(trimmed_articles)
@@ -47,18 +45,20 @@ class SummarizerTool(BaseTool):
 
         for attempt in range(1, max_attempts + 1):
             try:
-                response = model.generate_content(
-                    prompt,
-                    generation_config={"temperature": 0.3, "max_output_tokens": 600},
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash-lite",
+                    contents=prompt,
+                    config={"temperature": 0.3, "max_output_tokens": 600},
                 )
                 return response.text.strip()
 
-            except ResourceExhausted:
-                if attempt == max_attempts:
-                    return (
-                        "Summaries unavailable: rate limit reached, please retry later."
-                    )
-                time.sleep(wait_seconds)
-                wait_seconds *= 2
+            except errors.ClientError as e:
+                if getattr(e, "code", None) == 429:
+                    if attempt == max_attempts:
+                        return "Summaries unavailable: rate limit reached, please retry later."
+                    time.sleep(wait_seconds)
+                    wait_seconds *= 2
+                else:
+                    raise
 
         return "Summaries unavailable."
