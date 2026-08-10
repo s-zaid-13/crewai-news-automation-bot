@@ -23,7 +23,7 @@ def fetch_news():
 
     return {
         "count": len(rows),
-        "last_updated": rows[0]["Date"] if rows else None,
+        "last_updated": rows[0]["Datetime"] if rows else None,
         "items": rows[:50],
     }
 
