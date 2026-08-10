@@ -1,0 +1,8 @@
+crewai==1.15.14
+python-dotenv>=1.2.2
+requests>=2.33.0
+gspread>=6.1.4
+google-auth>=2.35.0
+slack-sdk>=3.33.4
+litellm
+google-generativeai>=0.8.0
