@@ -46,7 +46,7 @@ class SummarizerTool(BaseTool):
         for attempt in range(1, max_attempts + 1):
             try:
                 response = client.models.generate_content(
-                    model="gemini-2.5-flash-lite",
+                    model=config.GEMINI_MODEL,
                     contents=prompt,
                     config={"temperature": 0.3, "max_output_tokens": 600},
                 )
