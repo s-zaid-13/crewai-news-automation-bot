@@ -3,7 +3,10 @@ name = "signal-desk-dashboard"
 version = "1.0.0"
 requires-python = ">=3.12"
 dependencies = [
+    "flask>=3.0.0",
     "gspread>=6.1.4",
     "google-auth>=2.35.0",
 ]
 
+[tool.vercel]
+entrypoint = "api.index:app"
